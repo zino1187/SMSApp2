@@ -5,7 +5,16 @@
     <!--앱이 SMS를 사용할 수 있도록 권한을 부여
           유저가 앱스토어에서 이앱이 가능한 퍼미션을 노출하는 기능..
     -->
-    <uses-permission android:name="android.permission.SEND_SMS"/>
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.NFC" />
+
+    <!--여기에서 명시한 기능을 지원하지 않는 스마트폰은 앱스토어에서 이 앱을
+    다운로드 받을 수 없다!!
+    이 기능은 언제쓰나? 아래의 명시한 기능이 필수일 경우...
+    -->
+    <uses-feature
+        android:name="android.hardware.nfc"
+        android:required="true" />
 
     <application
         android:allowBackup="true"
@@ -19,6 +28,11 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.nfc.action.NDEF_DISCOVERED"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

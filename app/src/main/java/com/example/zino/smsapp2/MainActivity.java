@@ -1,8 +1,13 @@
 package com.example.zino.smsapp2;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.nfc.NdefMessage;
+import android.nfc.NdefRecord;
+import android.nfc.NfcAdapter;
 import android.os.Build;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,10 +18,16 @@ import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
     String TAG=this.getClass().getName();
+
+    /*문자관련 코드*/
     SmsManager smsManager;
     String dest="010-2867-9055";
     String msg="아이가 유치원에 도책했어요";
     public static final int REQUEST_SMS=1;
+
+    /*NFC 관련*/
+    NfcAdapter nfcAdapter;
+    Intent intent; /* 시스템이 보내준 NDEF_DISCOVERED 인텐트*/
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,9 +39,77 @@ public class MainActivity extends AppCompatActivity {
         * 얻는 방법을 주로 제공...
         * */
         smsManager = SmsManager.getDefault();
+        nfcCheck();
+        readFromNfc();
+    }
+
+    /*NFC 지원여부를 체크하는 메서드 정의*/
+    public void nfcCheck(){
+        nfcAdapter=NfcAdapter.getDefaultAdapter(this);
+
+        if(nfcAdapter==null){
+            Toast.makeText(this, "이 디바이스는 NFC를 지원하지 않습니다", Toast.LENGTH_LONG).show();
+        }else{
+            Toast.makeText(this, "축하합니다", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /*시스템이 넘겨준 인텐트로 부터 데이터를 추출해보자!!*/
+    public void readFromNfc(){
+        intent = getIntent();
+
+        /*인텐트에 데이터를 전달할때 객체는 자체를 넣지는 못한다..안드로이드에서는
+         intent 에 데이터를 넣을때 조각을 내서 탑재하고 이 과정을 Parcelable 인테페이스가
+         담당한다...*/
+
+        /*Tag > NdefMessage > NfedRecord */
+        Parcelable[] parcelables=intent.getParcelableArrayExtra(NfcAdapter.EXTRA_NDEF_MESSAGES);
+
+        if(parcelables == null){
+            //Toast.makeText(this, "데이터가 없네요", Toast.LENGTH_SHORT).show();
+            return;
+        }else{
+
+            for(int i=0;i<parcelables.length;i++){
+                /*메세지 추출하고 형변환*/
+                NdefMessage ndefMessage=(NdefMessage) parcelables[i];
+
+                /*메세지 안에 들어있는 레코드 갯수만큼....*/
+                for(int a=0;a<ndefMessage.getRecords().length;a++){
+                    /*레코드 추출*/
+                    NdefRecord record=ndefMessage.getRecords()[a];
+                    String data=decode(record.getPayload()); /*레코드에 들어있는 데이터 추출 반환형 byte[]*/
+
+                    Toast.makeText(this,data,Toast.LENGTH_LONG).show();
+                    /*읽혀진 메세지가 조건에 맞는다면 문자 보내자!!*/
+                    if(data.equals("mommy")){
+                        sendStart();
+                    }
+                }
+            }
+
+        }
+    }
+
+    /*byte[] 배열을 String으로 반환하는 메서드 */
+    public String decode(byte[] buf) {
+        String strText = "";
+        String textEncoding = ((buf[0] & 0200) == 0) ? "UTF-8" : "UTF-16";
+        int langCodeLen = buf[0] & 0077;
+
+        try {
+            strText = new String(buf, langCodeLen + 1, buf.length - langCodeLen - 1, textEncoding);
+        } catch (Exception e) {
+            Log.d("tag1", e.toString());
+        }
+        return strText;
     }
 
     public void send(View view){
+        sendStart();
+    }
+
+    public void sendStart(){
         /*현재 앱이 해당 권한을 취득한 상태인지 물어봐서 처리해야 한다..*/
 
         /*현재 앱이 SMS 권한을 취득했는지 부터 체크하자....
